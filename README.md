@@ -29,9 +29,8 @@ Renovate の自動マージ(`platformAutomerge`)は、リポジトリで自動�
 
 | まとまり | 自動マージ | ラベル | 中身 |
 | --- | --- | --- | --- |
-| `all dependencies` | する | | メジャー以外の全部。小さくて頻繁で、タグを戻せば済む |
+| `all dependencies` | する | | メジャー以外の全部 (Helm の chart も含む)。小さくて頻繁で、タグを戻せば済む |
 | `major dependencies` | **しない** | `needs-review` | メジャー。とくにデータベースはタグを差し替えるだけでは上がらない(PostgreSQL は別メジャーが書いたデータディレクトリでは起動を拒否する) |
-| `helm charts` | **しない** | `needs-review` | Helm の chart。更新の種類を問わない |
 
 ### `needs-review` ラベル
 
