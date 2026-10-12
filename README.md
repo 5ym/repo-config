@@ -64,14 +64,7 @@ svelte-check が TypeScript 6 と 7 を並べて要る(7 は `@typescript/native
 `peerDependencies` だけは `widen`(`^5.0.0` → `^5.0.0 || ^6.0.0`)。ライブラリが対応範囲として
 公開している値なので、最新に引き上げると利用者全員に更新を強いることになる。
 
-### なぜ chart は種類を問わず外すのか
-
-**chart の版は中身の大きさを表しません。** erpnext は `8.0.15` → `8.0.78` という「パッチ」で
-キャッシュとキューを Dragonfly から Valkey に入れ替え、values に書いてあったメモリ上限を
-丸ごと無効にしました(danything/gitops#25)。メジャーを分けるだけでは止まりません。
-
-グループを分けてあるのは、chart を止めることで `all dependencies` の PR まで
-自動マージされなくなるのを避けるためです。
+### 自動マージの前提
 
 `platformAutomerge` を使うため、対象リポジトリ側で **Settings → General → Allow auto-merge** を有効にしておく必要があります。
 
