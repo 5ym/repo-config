@@ -27,18 +27,6 @@
       ]
     },
     {
-      "description": "Helm charts are never merged automatically, whatever the update type. A chart's version says nothing about how much of the deployment changes: erpnext went 8.0.15 -> 8.0.78, a \"patch\", and swapped its cache and queue from Dragonfly to Valkey, silently voiding the memory limits that were set in values (danything/gitops#25). Separating majors does not catch that. They get their own group so that holding them back does not also hold back the all-dependencies PR. Labelled needs-review so the repository's Claude review workflow can opt these in: reviewing a PR that merges itself is wasted, reviewing one that waits for a human is not.",
-      "matchDatasources": [
-        "helm"
-      ],
-      "groupName": "helm charts",
-      "groupSlug": "helm",
-      "automerge": false,
-      "addLabels": [
-        "needs-review"
-      ]
-    },
-    {
       "description": "Libraries publish peerDependencies as the range they work with. Bumping it to the latest version would force every consumer to upgrade, so peers are widened instead (^5.0.0 -> ^5.0.0 || ^6.0.0) and everything else is bumped. Bumping (rather than updating only the lockfile) is the default because Renovate cannot do lockfile-only updates on bun.lock: in-range security fixes were being closed without being applied.",
       "matchDepTypes": [
         "peerDependencies"
