@@ -52,6 +52,8 @@ jobs:
           RENOVATE_REQUIRE_CONFIG: required
           # postUpgradeTasks で流してよいコマンド(正規表現。これに合わないものは Renovate が拒む)。
           # danything/gitops の pulumi/ は bun.lock を Renovate が作れない(SDK を pulumi install でしか作れない)ので、
-          # そのリポジトリのスクリプトで pulumi install させる(gitops の pulumi/README.md)
-          RENOVATE_ALLOWED_COMMANDS: '["^bash pulumi/renovate-post-upgrade\\.sh$"]'
+          # そのリポジトリのスクリプトで pulumi install させる(gitops の pulumi/README.md)。
+          # 同じく gitops の AdGuard Home の版上げでは、新しい版に config.yaml を移行させる
+          # (gitops の apps/adguardhome/renovate-post-upgrade.sh)
+          RENOVATE_ALLOWED_COMMANDS: '["^bash pulumi/renovate-post-upgrade\\.sh$", "^bash apps/adguardhome/renovate-post-upgrade\\.sh$"]'
           LOG_LEVEL: info
