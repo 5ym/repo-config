@@ -1,14 +1,12 @@
 name: Renovate
 
-# danything と 5ym の全リポジトリの依存を上げる PR を出す(Mend のクラウド版の App の代わり)。
-# Forgejo(fj.doany.io)側は doa/renovate が同じことをしている。
-# 15 分に 1 回。1 回 3〜7 分で終わるので普通は重ならない(重なっても concurrency で待つ)。
-# 手で回すときは Actions の画面から workflow_dispatch。
-# GitHub の schedule は数分〜数十分遅れたり飛ばされたりする。毎時だと 1 回飛ぶと 2 時間空くので細かめにしてある。
-# 毎時 0 分ちょうどは混んで遅れやすいので外す
+# danything と 5ym の全リポジトリの依存を上げる PR を出す。**ふだんはここでは回さない。**
+# 2026-10 から danything/gitops の apps/renovate/ の CronJob が 15 分おきに回している
+# (GitHub の schedule は 15〜40 分遅れ、丸ごと飛ばされることもあったため)。
+# これはクラスタが落ちているときの予備。Actions の画面から workflow_dispatch で手で回す。
+# **CronJob と同時に走らせないこと**(同じリポジトリに 2 つの Renovate が触る)。
+# 設定は CronJob 側と揃えておく(apps/renovate/renovate.yaml の renovate-github)
 on:
-  schedule:
-    - cron: "7,22,37,52 * * * *"
   workflow_dispatch:
 
 permissions: {}
