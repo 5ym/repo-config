@@ -5,7 +5,7 @@ danything と 5ym の**全リポジトリの git の運用の共通設定**(2026
 | 中身 | 在処 |
 | --- | --- |
 | 共有の Renovate プリセット | [default.json](default.json)(下の「使い方」) |
-| GitHub 側で Renovate を回す | [.github/workflows/renovate.yml](.github/workflows/renovate.yml)(GitHub App doa-renovate) |
+| Renovate を回す | danything/gitops の [apps/renovate/](https://github.com/danything/gitops/tree/main/apps/renovate)(k8s の CronJob。GitHub の danything・5ym と Forgejo の doa) |
 | リポジトリの設定を揃える | [repo-settings.json](repo-settings.json) と [rulesets.json](rulesets.json)(既定のブランチの削除と force push を止める。必須のチェックは各リポジトリのルールセットで持つ)を [.github/workflows/repo-settings.yml](.github/workflows/repo-settings.yml) が毎日と変更時に全リポジトリへ当てる(GitHub App doa-repo-settings。Administration の書き込みだけ) |
 
 ### リポジトリの設定
@@ -70,8 +70,8 @@ svelte-check が TypeScript 6 と 7 を並べて要る(7 は `@typescript/native
 
 ## Renovate を回す(self-hosted)
 
-GitHub の `danything` と `5ym` は [.github/workflows/renovate.yml](.github/workflows/renovate.yml) が毎時 17 分に回す(Mend のクラウド版の App の代わり)。Forgejo(fj.doany.io)側は `doa/renovate` が回す。
+GitHub の `danything`・`5ym` と Forgejo(fj.doany.io)の `doa` は、danything/gitops の [apps/renovate/](https://github.com/danything/gitops/tree/main/apps/renovate) の CronJob が 15 分おきに回す(2026-10-16 から。それまではこのリポジトリの GitHub Actions と doa/renovate の Forgejo Actions だった)。クラスタが止まっているあいだは Renovate も止まる(更新先のサーバも止まっているので、予備は置かない)。
 
 - GitHub App [doa-renovate](https://github.com/apps/doa-renovate)(持ち主は danything)を danything と 5ym に入れてある
-- 変数 `RENOVATE_APP_CLIENT_ID` / `RENOVATE_GIT_AUTHOR`、シークレット `RENOVATE_APP_PRIVATE_KEY`
+- App の秘密鍵は Infisical の `/renovate/renovate-secrets`。client ID などはマニフェストに書いてある(apps/renovate/README.md)
 - `renovate.json` の無いリポジトリには、上の `renovate.json` を足す onboarding の PR が出る。マージするまでそのリポジトリでは依存の PR は出ない(要らなければ PR を閉じれば以後出ない)
