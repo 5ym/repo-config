@@ -46,6 +46,13 @@
         "github-releases"
       ],
       "minimumReleaseAge": "1 hour"
+    },
+    {
+      "description": "The same wait for npm. Packages that ship native binaries publish the main package first and the per-platform packages (optionalDependencies) minutes later; Renovate saw @biomejs/biome 2.6.3 in that gap, so the lockfile it committed lacked some platforms and CI failed with a 404 on @biomejs/cli-linux-x64 (doa/tamasagashi#130, 2026-10-24: main package 13:14 UTC, linux-x64 13:16, win32-x64 13:20).",
+      "matchDatasources": [
+        "npm"
+      ],
+      "minimumReleaseAge": "1 hour"
     }
   ],
   "automergeType": "pr",
