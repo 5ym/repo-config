@@ -24,6 +24,32 @@
         "block_on_outdated_branch": false,
         "apply_to_admins": false
       }
+    ],
+    "tamasagashi": [
+      {
+        "rule_name": "main",
+        "enable_push": true,
+        "enable_status_check": true,
+        "status_check_contexts": [
+          "Test / *"
+        ],
+        "required_approvals": 0,
+        "block_on_outdated_branch": false,
+        "apply_to_admins": false
+      }
+    ],
+    "worklog-cloud": [
+      {
+        "rule_name": "main",
+        "enable_push": true,
+        "enable_status_check": true,
+        "status_check_contexts": [
+          "Test / *"
+        ],
+        "required_approvals": 0,
+        "block_on_outdated_branch": false,
+        "apply_to_admins": false
+      }
     ]
   },
   "org_webhooks": [
