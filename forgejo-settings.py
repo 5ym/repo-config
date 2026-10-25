@@ -53,6 +53,15 @@ for repo, rules in cfg["branch_protections"].items():
             d = diff(cur, {k: v for k, v in rule.items() if k != "rule_name"})
             if d: apply(f"{repo}: 保護 {rule['rule_name']} {d}", "PATCH", f"/repos/{ORG}/{repo}/branch_protections/{rule['rule_name']}", d)
 
+# 2b. 消す保護(branch_protections_remove に名前を書いたものだけ。あれば消す)
+for repo, names in cfg.get("branch_protections_remove", {}).items():
+    st, have = api("GET", f"/repos/{ORG}/{repo}/branch_protections")
+    if st != 200: failed.append(f"{repo} protections: {st} {have}"); continue
+    present = {p.get("rule_name") or p.get("branch_name") for p in have}
+    for name in names:
+        if name in present:
+            apply(f"{repo}: 保護 {name} を消す", "DELETE", f"/repos/{ORG}/{repo}/branch_protections/{name}", None)
+
 # 3. 組織の webhook(**種類ごとに 1 本**の前提で、種類で見分ける。同じ種類を手で足すと上書きされる。書いていない webhook は消さない)
 st, hooks = api("GET", f"/orgs/{ORG}/hooks")
 if st != 200: sys.exit(f"hooks: {st} {hooks}")
