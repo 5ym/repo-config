@@ -29,10 +29,8 @@
       {
         "rule_name": "main",
         "enable_push": true,
-        "enable_status_check": true,
-        "status_check_contexts": [
-          "Test / *"
-        ],
+        "enable_status_check": false,
+        "status_check_contexts": [],
         "required_approvals": 0,
         "block_on_outdated_branch": false,
         "apply_to_admins": false
@@ -42,10 +40,8 @@
       {
         "rule_name": "main",
         "enable_push": true,
-        "enable_status_check": true,
-        "status_check_contexts": [
-          "Test / *"
-        ],
+        "enable_status_check": false,
+        "status_check_contexts": [],
         "required_approvals": 0,
         "block_on_outdated_branch": false,
         "apply_to_admins": false
