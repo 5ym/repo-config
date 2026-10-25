@@ -12,6 +12,7 @@ on:
     paths:
       - repo-settings.json
       - rulesets.json
+      - security-settings.json
       - .github/workflows/repo-settings.yml
   schedule:
     - cron: "41 3 * * *"
@@ -108,4 +109,53 @@ jobs:
             fi
           done
           echo "${{ matrix.owner }} のルールセット: ${created} 本を作った、${updated} 本を直した、${skipped} 本は飛ばした、${failed} 本は失敗" >> "$GITHUB_STEP_SUMMARY"
+          [ "$failed" -eq 0 ]
+
+      - name: security
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          set -euo pipefail
+          # 公開リポジトリなら無料で使えるものだけをオンにする (オフに戻すことはしない)。
+          # - シークレットの検出と push の保護: security-settings.json の security_and_analysis
+          # - Dependabot のアラート: 脆弱性を知らせるだけ。直す PR は Renovate が出すので、Dependabot の security updates は触らない
+          # - 脆弱性の非公開の報告 (Security → Report a vulnerability)
+          # - CodeQL の default setup: fork は除く (上流のコードを毎週解析しても誰も読まない)
+          # 非公開でプランに無い (403/422)・解析できる言語が無い (422) ものは知らせて飛ばす
+          changed=0
+          failed=0
+          skipped=0
+          err=$(mktemp)
+          want=$(jq -S -c '.security_and_analysis | map_values(.status)' security-settings.json)
+          # 1 つ当てる。プランに無い・対象外 (403/404/422) は飛ばし、ほかの失敗は数える
+          apply() {
+            local repo=$1 what=$2
+            shift 2
+            if gh api "$@" > /dev/null 2>"$err"; then
+              echo "::notice title=$repo::$what をオンにした"
+              changed=$((changed + 1))
+            elif grep -qE "HTTP (403|404|422)" "$err"; then
+              echo "::notice title=$repo::$what を使えない。飛ばす: $(head -c 200 "$err")"
+              skipped=$((skipped + 1))
+            else
+              echo "::error title=$repo::$what をオンにできなかった: $(head -c 300 "$err")"
+              failed=$((failed + 1))
+            fi
+          }
+          while read -r repo fork; do
+            have=$(gh api "repos/$repo" | jq -S -c --argjson w "$want" '(.security_and_analysis // {}) | with_entries(select(.key | in($w))) | map_values(.status)')
+            if [ "$have" != "$want" ]; then
+              apply "$repo" "シークレットの検出" -X PATCH "repos/$repo" --input security-settings.json
+            fi
+            if ! gh api "repos/$repo/vulnerability-alerts" > /dev/null 2>&1; then
+              apply "$repo" "Dependabot のアラート" -X PUT "repos/$repo/vulnerability-alerts"
+            fi
+            if [ "$(gh api "repos/$repo/private-vulnerability-reporting" -q .enabled 2>/dev/null || echo false)" != "true" ]; then
+              apply "$repo" "脆弱性の非公開の報告" -X PUT "repos/$repo/private-vulnerability-reporting"
+            fi
+            if [ "$fork" = "false" ] && [ "$(gh api "repos/$repo/code-scanning/default-setup" -q .state 2>/dev/null || echo unknown)" = "not-configured" ]; then
+              apply "$repo" "CodeQL" -X PATCH "repos/$repo/code-scanning/default-setup" -f state=configured
+            fi
+          done < <(gh api installation/repositories --paginate -q '.repositories[] | select(.archived | not) | "\(.full_name) \(.fork)"')
+          echo "${{ matrix.owner }} のセキュリティの設定: ${changed} 件をオンにした、${skipped} 件は飛ばした、${failed} 件は失敗" >> "$GITHUB_STEP_SUMMARY"
           [ "$failed" -eq 0 ]

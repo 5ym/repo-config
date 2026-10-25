@@ -7,6 +7,7 @@ danything と 5ym の**全リポジトリの git の運用の共通設定**(2026
 | 共有の Renovate プリセット | [default.json](default.json)(下の「使い方」) |
 | Renovate を回す | danything/gitops の [apps/renovate/](https://github.com/danything/gitops/tree/main/apps/renovate)(k8s の CronJob。GitHub の danything・5ym と Forgejo の doa) |
 | リポジトリの設定を揃える | [repo-settings.json](repo-settings.json) と [rulesets.json](rulesets.json)(既定のブランチの削除と force push を止める。必須のチェックは各リポジトリのルールセットで持つ)を [.github/workflows/repo-settings.yml](.github/workflows/repo-settings.yml) が毎日と変更時に全リポジトリへ当てる(GitHub App doa-repo-settings。Administration の書き込みだけ) |
+| セキュリティの機能をオンにする | [security-settings.json](security-settings.json) と同じ workflow の `security` の段。公開リポジトリで無料のもの(シークレットの検出と push の保護、Dependabot のアラート、脆弱性の非公開の報告、fork 以外の CodeQL の default setup)をオンにする。オフには戻さない。直す PR は Renovate が出すので、Dependabot の security updates には触らない |
 
 ### リポジトリの設定
 
