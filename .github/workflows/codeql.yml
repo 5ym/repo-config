@@ -1,0 +1,119 @@
+name: CodeQL
+
+# 各リポジトリから呼ぶ CodeQL の解析 (advanced setup)。呼ぶ側は数行で済む:
+#
+#   on:
+#     push:
+#       branches: [main]
+#     pull_request:
+#     schedule:
+#       - cron: "23 4 * * 1"
+#   jobs:
+#     codeql:
+#       permissions:
+#         security-events: write
+#         contents: read
+#         actions: read
+#       uses: 5ym/repo-config/.github/workflows/codeql.yml@main
+#       with:
+#         languages: '["actions", "csharp"]'
+#
+# default setup は C# を build-mode: none (ビルドせずにソースだけ読む) で解析し、呼び出し先を
+# 解決しきれずに「Low C# analysis quality」の警告が出る (denpa で 83%、しきい値 85%)。
+# default setup では言語ごとの build mode を選べないので、ここで C# だけビルドして解析する。
+# - C#: .NET を入れてビルドする。`csharp-build` を渡せばそのコマンド (manual)、無ければ autobuild
+# - Go: none が無いので autobuild
+# - ほかの言語: default setup と同じ none
+# クエリ (default) と脅威モデル (remote) は既定のまま。category は default setup と同じ
+# /language:<言語> にして、それまでのアラートを引き継ぐ。
+#
+# default setup と同時には使えない (オンだと結果が受け付けられない)。呼ぶ側のリポジトリでは
+# default setup を切る。repo-settings.yml の毎日の実行も、これを呼ぶリポジトリでは default setup をオンにしない。
+on:
+  workflow_call:
+    inputs:
+      languages:
+        description: 解析する言語 (JSON の配列。例 '["actions", "csharp", "javascript-typescript"]')
+        type: string
+        required: true
+      csharp-build:
+        description: C# のビルドのコマンド (例 'dotnet build agent/App.Tests/App.Tests.csproj')。空なら autobuild
+        type: string
+        default: ""
+      dotnet-version:
+        description: 入れる .NET SDK のバージョン。空なら global.json の sdk.version、それも無ければ 10.x
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    permissions:
+      # 結果を Code scanning に上げる
+      security-events: write
+      contents: read
+      # 実行の情報を読む (codeql-action が使う)
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ${{ fromJSON(inputs.languages) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Choose build mode
+        id: mode
+        env:
+          LANGUAGE: ${{ matrix.language }}
+          CSHARP_BUILD: ${{ inputs.csharp-build }}
+        run: |
+          case "$LANGUAGE" in
+            csharp) if [ -n "$CSHARP_BUILD" ]; then echo mode=manual; else echo mode=autobuild; fi ;;
+            go) echo mode=autobuild ;;
+            *) echo mode=none ;;
+          esac >> "$GITHUB_OUTPUT"
+
+      # global.json に sdk.version があればそれに合わせる (test.runner だけの global.json もある)。
+      # jq で読むので、コメント入りの global.json は読めずに 10.x になる。そのときは dotnet-version を渡す
+      - name: Choose .NET version
+        id: dotnet
+        if: matrix.language == 'csharp'
+        env:
+          DOTNET_VERSION: ${{ inputs.dotnet-version }}
+        run: |
+          if [ -n "$DOTNET_VERSION" ]; then
+            echo "version=$DOTNET_VERSION" >> "$GITHUB_OUTPUT"
+          elif [ -f global.json ] && jq -e '.sdk.version' global.json > /dev/null; then
+            echo "global-json-file=global.json" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=10.x" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up .NET
+        if: matrix.language == 'csharp'
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: ${{ steps.dotnet.outputs.version }}
+          global-json-file: ${{ steps.dotnet.outputs.global-json-file }}
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ steps.mode.outputs.mode }}
+
+      - name: Build
+        if: steps.mode.outputs.mode == 'manual'
+        env:
+          CSHARP_BUILD: ${{ inputs.csharp-build }}
+        run: eval "$CSHARP_BUILD"
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          category: /language:${{ matrix.language }}
