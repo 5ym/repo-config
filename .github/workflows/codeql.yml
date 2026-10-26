@@ -78,7 +78,8 @@ jobs:
             *) echo mode=none ;;
           esac >> "$GITHUB_OUTPUT"
 
-      # global.json に sdk.version があればそれに合わせる (test.runner だけの global.json もある)
+      # global.json に sdk.version があればそれに合わせる (test.runner だけの global.json もある)。
+      # jq で読むので、コメント入りの global.json は読めずに 10.x になる。そのときは dotnet-version を渡す
       - name: Choose .NET version
         id: dotnet
         if: matrix.language == 'csharp'
@@ -108,7 +109,9 @@ jobs:
 
       - name: Build
         if: steps.mode.outputs.mode == 'manual'
-        run: ${{ inputs.csharp-build }}
+        env:
+          CSHARP_BUILD: ${{ inputs.csharp-build }}
+        run: eval "$CSHARP_BUILD"
 
       - name: Analyze
         uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
