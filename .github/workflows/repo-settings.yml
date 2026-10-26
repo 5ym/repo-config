@@ -121,8 +121,10 @@ jobs:
           # - Dependabot のアラート: 脆弱性を知らせるだけ。直す PR は Renovate が出すので、Dependabot の security updates は触らない
           # - 脆弱性の非公開の報告 (Security → Report a vulnerability)
           # - CodeQL の default setup: fork は除く (上流のコードを毎週解析しても誰も読まない)。
-          #   自分の CodeQL の workflow (advanced setup) を持つリポジトリも除く。default setup と同時には使えず、
-          #   オンにすると advanced の結果が受け付けられなくなる (denpa は C# をビルドして解析するために advanced にした)
+          #   自分の CodeQL の workflow (advanced setup。この repo の codeql.yml を呼ぶものも) を持つリポジトリも除く。
+          #   default setup と同時には使えず、オンにすると advanced の結果が受け付けられなくなる
+          # - .NET (*.csproj / *.sln / *.slnx) を持つのに codeql.yml を呼んでいないリポジトリは知らせるだけ (書き込みはしない)。
+          #   default setup は C# をビルドせずに解析するので、品質が足りないと警告が出る (codeql.yml の説明)
           # 非公開でプランに無い (403/422)・解析できる言語が無い (422) ものは知らせて飛ばす
           changed=0
           failed=0
@@ -144,20 +146,35 @@ jobs:
               failed=$((failed + 1))
             fi
           }
-          # 既定のブランチの .github/workflows/ に github/codeql-action/analyze を使う workflow があれば advanced setup とみなす。
-          # default setup の workflow は path が dynamic/ で始まるので、ここには入らない。消えたファイル (404) は数えない。
-          # 0: ある、1: 無い、2: 確かめられない (API の失敗)。確かめられないときはオンにしない方を選ぶ
-          has_advanced() {
+          # 既定のブランチの .github/workflows/ にある CodeQL の workflow を探し、codeql に入れる:
+          # shared (この repo の codeql.yml を呼ぶ)・own (github/codeql-action/analyze を直に使う)・none・unknown (API の失敗)。
+          # default setup の workflow は path が dynamic/ で始まるので、ここには入らない。消えたファイル (404) は数えない
+          find_codeql() {
             local repo=$1 paths path body
-            paths=$(gh api "repos/$repo/actions/workflows" --paginate -q '.workflows[] | select(.path | startswith(".github/workflows/")) | .path' 2>"$err") || return 2
+            codeql=none
+            if ! paths=$(gh api "repos/$repo/actions/workflows" --paginate -q '.workflows[] | select(.path | startswith(".github/workflows/")) | .path' 2>"$err"); then
+              codeql=unknown
+              return
+            fi
             for path in $paths; do
               if body=$(gh api -H "Accept: application/vnd.github.raw" "repos/$repo/contents/$path" 2>"$err"); then
-                grep -q "github/codeql-action/analyze" <<<"$body" && return 0
+                if grep -q "5ym/repo-config/.github/workflows/codeql.yml" <<<"$body"; then
+                  codeql=shared
+                  return
+                fi
+                if grep -q "github/codeql-action/analyze" <<<"$body"; then
+                  codeql=own
+                fi
               elif ! grep -q "HTTP 404" "$err"; then
-                return 2
+                codeql=unknown
+                return
               fi
             done
-            return 1
+            return 0
+          }
+          # 既定のブランチに .NET のプロジェクトがあるか (読めないときは無いとみなす。知らせるだけなので)
+          has_dotnet() {
+            gh api "repos/$1/git/trees/HEAD?recursive=1" -q '[.tree[].path | select(test("[.](csproj|sln|slnx)$"))] | length > 0' 2>/dev/null | grep -q true
           }
           while read -r repo fork; do
             have=$(gh api "repos/$repo" | jq -S -c --argjson w "$want" '(.security_and_analysis // {}) | with_entries(select(.key | in($w))) | map_values(.status)')
@@ -170,17 +187,21 @@ jobs:
             if [ "$(gh api "repos/$repo/private-vulnerability-reporting" -q .enabled 2>/dev/null || echo false)" != "true" ]; then
               apply "$repo" "脆弱性の非公開の報告" -X PUT "repos/$repo/private-vulnerability-reporting"
             fi
-            if [ "$fork" = "false" ] && [ "$(gh api "repos/$repo/code-scanning/default-setup" -q .state 2>/dev/null || echo unknown)" = "not-configured" ]; then
-              rc=0
-              has_advanced "$repo" || rc=$?
-              case $rc in
-                0) echo "::notice title=$repo::自分の CodeQL の workflow (advanced setup) があるので、default setup はオンにしない" ;;
-                1) apply "$repo" "CodeQL" -X PATCH "repos/$repo/code-scanning/default-setup" -f state=configured ;;
-                *)
-                  echo "::warning title=$repo::CodeQL の workflow があるか確かめられないので、default setup はオンにしない: $(head -c 200 "$err")"
-                  skipped=$((skipped + 1))
-                  ;;
-              esac
+            if [ "$fork" = "false" ]; then
+              find_codeql "$repo"
+              if [ "$(gh api "repos/$repo/code-scanning/default-setup" -q .state 2>/dev/null || echo unknown)" = "not-configured" ]; then
+                case $codeql in
+                  shared | own) echo "::notice title=$repo::自分の CodeQL の workflow (advanced setup) があるので、default setup はオンにしない" ;;
+                  none) apply "$repo" "CodeQL" -X PATCH "repos/$repo/code-scanning/default-setup" -f state=configured ;;
+                  *)
+                    echo "::warning title=$repo::CodeQL の workflow があるか確かめられないので、default setup はオンにしない: $(head -c 200 "$err")"
+                    skipped=$((skipped + 1))
+                    ;;
+                esac
+              fi
+              if { [ "$codeql" = none ] || [ "$codeql" = own ]; } && has_dotnet "$repo"; then
+                echo "::notice title=$repo::.NET があるのに 5ym/repo-config の codeql.yml を呼んでいない (C# をビルドして解析するには、呼ぶ workflow を置いて default setup を切る)"
+              fi
             fi
           done < <(gh api installation/repositories --paginate -q '.repositories[] | select(.archived | not) | "\(.full_name) \(.fork)"')
           echo "${{ matrix.owner }} のセキュリティの設定: ${changed} 件をオンにした、${skipped} 件は飛ばした、${failed} 件は失敗" >> "$GITHUB_STEP_SUMMARY"

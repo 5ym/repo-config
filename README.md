@@ -7,7 +7,8 @@ danything と 5ym の**全リポジトリの git の運用の共通設定**(2026
 | 共有の Renovate プリセット | [default.json](default.json)(下の「使い方」) |
 | Renovate を回す | danything/gitops の [apps/renovate/](https://github.com/danything/gitops/tree/main/apps/renovate)(k8s の CronJob。GitHub の danything・5ym と Forgejo の doa) |
 | リポジトリの設定を揃える | [repo-settings.json](repo-settings.json) と [rulesets.json](rulesets.json)(既定のブランチの削除と force push を止める。必須のチェックは各リポジトリのルールセットで持つ)を [.github/workflows/repo-settings.yml](.github/workflows/repo-settings.yml) が毎日と変更時に全リポジトリへ当てる(GitHub App doa-repo-settings。Administration の書き込みだけ) |
-| セキュリティの機能をオンにする | [security-settings.json](security-settings.json) と同じ workflow の `security` の段。公開リポジトリで無料のもの(シークレットの検出と push の保護、Dependabot のアラート、脆弱性の非公開の報告、fork 以外の CodeQL の default setup)をオンにする。自分の CodeQL の workflow(`github/codeql-action/analyze` を使う advanced setup)を持つリポジトリでは default setup をオンにしない(同時には使えない)。オフには戻さない。直す PR は Renovate が出すので、Dependabot の security updates には触らない |
+| セキュリティの機能をオンにする | [security-settings.json](security-settings.json) と同じ workflow の `security` の段。公開リポジトリで無料のもの(シークレットの検出と push の保護、Dependabot のアラート、脆弱性の非公開の報告、fork 以外の CodeQL の default setup)をオンにする。自分の CodeQL の workflow(`github/codeql-action/analyze` を使うか、下の codeql.yml を呼ぶ advanced setup)を持つリポジトリでは default setup をオンにしない(同時には使えない)。.NET を持つのに codeql.yml を呼んでいないリポジトリは知らせるだけ。オフには戻さない。直す PR は Renovate が出すので、Dependabot の security updates には触らない |
+| C# をビルドして CodeQL で解析する | [.github/workflows/codeql.yml](.github/workflows/codeql.yml)(各リポジトリから `uses: 5ym/repo-config/.github/workflows/codeql.yml@main` で呼ぶ。default setup は C# をビルドせずに解析して品質の警告が出るので、.NET のリポジトリはこちらを使い、default setup を切る。呼び方はファイルの先頭) |
 
 ### リポジトリの設定
 
