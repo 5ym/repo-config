@@ -145,12 +145,16 @@ jobs:
             fi
           }
           # 既定のブランチの .github/workflows/ に github/codeql-action/analyze を使う workflow があれば advanced setup とみなす。
-          # default setup の workflow は path が dynamic/ で始まるので、ここには入らない。消えたファイルや読めないものは数えない
+          # default setup の workflow は path が dynamic/ で始まるので、ここには入らない。消えたファイル (404) は数えない。
+          # 0: ある、1: 無い、2: 確かめられない (API の失敗)。確かめられないときはオンにしない方を選ぶ
           has_advanced() {
-            local repo=$1 path
-            for path in $(gh api "repos/$repo/actions/workflows" --paginate -q '.workflows[] | select(.path | startswith(".github/workflows/")) | .path' 2>/dev/null); do
-              if gh api -H "Accept: application/vnd.github.raw" "repos/$repo/contents/$path" 2>/dev/null | grep -q "github/codeql-action/analyze"; then
-                return 0
+            local repo=$1 paths path body
+            paths=$(gh api "repos/$repo/actions/workflows" --paginate -q '.workflows[] | select(.path | startswith(".github/workflows/")) | .path' 2>"$err") || return 2
+            for path in $paths; do
+              if body=$(gh api -H "Accept: application/vnd.github.raw" "repos/$repo/contents/$path" 2>"$err"); then
+                grep -q "github/codeql-action/analyze" <<<"$body" && return 0
+              elif ! grep -q "HTTP 404" "$err"; then
+                return 2
               fi
             done
             return 1
@@ -167,11 +171,16 @@ jobs:
               apply "$repo" "脆弱性の非公開の報告" -X PUT "repos/$repo/private-vulnerability-reporting"
             fi
             if [ "$fork" = "false" ] && [ "$(gh api "repos/$repo/code-scanning/default-setup" -q .state 2>/dev/null || echo unknown)" = "not-configured" ]; then
-              if has_advanced "$repo"; then
-                echo "::notice title=$repo::自分の CodeQL の workflow (advanced setup) があるので、default setup はオンにしない"
-              else
-                apply "$repo" "CodeQL" -X PATCH "repos/$repo/code-scanning/default-setup" -f state=configured
-              fi
+              rc=0
+              has_advanced "$repo" || rc=$?
+              case $rc in
+                0) echo "::notice title=$repo::自分の CodeQL の workflow (advanced setup) があるので、default setup はオンにしない" ;;
+                1) apply "$repo" "CodeQL" -X PATCH "repos/$repo/code-scanning/default-setup" -f state=configured ;;
+                *)
+                  echo "::warning title=$repo::CodeQL の workflow があるか確かめられないので、default setup はオンにしない: $(head -c 200 "$err")"
+                  skipped=$((skipped + 1))
+                  ;;
+              esac
             fi
           done < <(gh api installation/repositories --paginate -q '.repositories[] | select(.archived | not) | "\(.full_name) \(.fork)"')
           echo "${{ matrix.owner }} のセキュリティの設定: ${changed} 件をオンにした、${skipped} 件は飛ばした、${failed} 件は失敗" >> "$GITHUB_STEP_SUMMARY"
