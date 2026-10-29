@@ -1,0 +1,58 @@
+name: Pin watch
+
+# Renovate の規則などで版を留めているもの (pin-watch.json) を毎週確かめ、相手が対応して外せるようになったら
+# このリポジトリに issue を立てる (同じ id の issue が開いていれば立てない)。外したら pin-watch.json からも消す。
+# 確かめに失敗したもの (相手のサイトが落ちている・形が変わった) は job を落として知らせる
+on:
+  schedule:
+    - cron: "17 0 * * 1"
+  push:
+    branches: [main]
+    paths:
+      - pin-watch.json
+      - pin-watch.mjs
+      - .github/workflows/pin-watch.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+      - run: npm install --no-save --no-package-lock semver
+      - name: 確かめる
+        run: node pin-watch.mjs > results.json
+      - name: 外せるものの issue を立てる
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # 開いている issue の本文に `id` があれば立てない。検索 (--search) は記号の多い id で当てにならないので、一覧を取って jq で見る
+          gh issue list --state open --limit 200 --json body > open.json
+          failed=0
+          while read -r w; do
+            id=$(jq -r .id <<<"$w")
+            if jq -e --arg m "(\`$id\`)" 'any(.[]; .body | contains($m))' open.json >/dev/null; then
+              echo "開いている issue がある: $id"
+              continue
+            fi
+            body=$(jq -r '"確かめた結果: \(.detail)\n\n外すもの:\n\(.pins | map("- " + .) | join("\n"))\n\n外したら pin-watch.json からこの項目 (`\(.id)`) を消す。"' <<<"$w")
+            gh issue create --title "[pin-watch] $(jq -r .title <<<"$w")" --body "$body" --assignee 5ym || { echo "::error::issue を立てられなかった: $id"; failed=1; }
+          done < <(jq -c '.[] | select(.ok)' results.json)
+          {
+            echo "| | id | 結果 |"
+            echo "| --- | --- | --- |"
+            jq -r '.[] | "| \(if .ok then "外せる" elif .error then "失敗" else "まだ" end) | \(.id) | \(.error // .detail) |"' results.json
+          } >> "$GITHUB_STEP_SUMMARY"
+          if jq -e 'any(.[]; .error)' results.json >/dev/null; then
+            echo "::error::確かめに失敗したものがある (上の表)"
+            failed=1
+          fi
+          exit "$failed"

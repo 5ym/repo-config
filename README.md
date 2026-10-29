@@ -77,3 +77,19 @@ GitHub の `danything`・`5ym` と Forgejo(fj.doany.io)の `doa` は、danything
 - GitHub App [doa-renovate](https://github.com/apps/doa-renovate)(持ち主は danything)を danything と 5ym に入れてある
 - App の秘密鍵は Infisical の `/renovate/renovate-secrets`。client ID などはマニフェストに書いてある(apps/renovate/README.md)
 - `renovate.json` の無いリポジトリには、上の `renovate.json` を足す onboarding の PR が出る。マージするまでそのリポジトリでは依存の PR は出ない(要らなければ PR を閉じれば以後出ない)
+
+## 固定を外す見張り (pin-watch)
+
+Renovate の規則などで版を留めているもののうち、**相手が対応したら外すもの**を [pin-watch.json](pin-watch.json) に書いておくと、
+[.github/workflows/pin-watch.yml](.github/workflows/pin-watch.yml) が毎週 (月曜 9:17) 確かめ、外せるようになったらこのリポジトリに issue を立てる (5ym に割り当て)。
+固定だけして放置しないため。確かめ方は 4 種類 ([pin-watch.mjs](pin-watch.mjs)):
+
+| type | 外せる条件 |
+| --- | --- |
+| `npm-peer` | 最新の版の `peerDependencies` がその版を受け付ける (astro check・svelte-check の TypeScript など) |
+| `npm-stable` | その版以上の正式版が出た (Blades 3.1.0) |
+| `dotnet-ga` | .NET のチャネルが active になった |
+| `page-text-gone` | ページから文言が消えた (MosP の動作環境の表) |
+
+外したら pin-watch.json の項目も消す。**わざと留めているもの (人の作業が要る PostgreSQL のメジャーなど) は載せない。**
+固定する前に、相手の宣言を毎回読む形にできないかを先に考える (gitops の renovate-validate は Renovate の engines から Node を決める)。
