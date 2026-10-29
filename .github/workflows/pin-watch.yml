@@ -34,16 +34,18 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          jq -c '.[] | select(.ok)' results.json | while read -r w; do
+          # 開いている issue の本文に `id` があれば立てない。検索 (--search) は記号の多い id で当てにならないので、一覧を取って jq で見る
+          gh issue list --state open --limit 200 --json body > open.json
+          failed=0
+          while read -r w; do
             id=$(jq -r .id <<<"$w")
-            title="[pin-watch] $(jq -r .title <<<"$w")"
-            if gh issue list --state open --search "\"[pin-watch]\" in:title $id in:body" --json number -q 'length' | grep -qv '^0$'; then
+            if jq -e --arg m "(\`$id\`)" 'any(.[]; .body | contains($m))' open.json >/dev/null; then
               echo "開いている issue がある: $id"
               continue
             fi
             body=$(jq -r '"確かめた結果: \(.detail)\n\n外すもの:\n\(.pins | map("- " + .) | join("\n"))\n\n外したら pin-watch.json からこの項目 (`\(.id)`) を消す。"' <<<"$w")
-            gh issue create --title "$title" --body "$body" --assignee 5ym
-          done
+            gh issue create --title "[pin-watch] $(jq -r .title <<<"$w")" --body "$body" --assignee 5ym || { echo "::error::issue を立てられなかった: $id"; failed=1; }
+          done < <(jq -c '.[] | select(.ok)' results.json)
           {
             echo "| | id | 結果 |"
             echo "| --- | --- | --- |"
@@ -51,5 +53,6 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
           if jq -e 'any(.[]; .error)' results.json >/dev/null; then
             echo "::error::確かめに失敗したものがある (上の表)"
-            exit 1
+            failed=1
           fi
+          exit "$failed"

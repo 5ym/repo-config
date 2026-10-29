@@ -5,8 +5,11 @@ import semver from "semver";
 
 const { watches } = JSON.parse(readFileSync(new URL("./pin-watch.json", import.meta.url), "utf8"));
 
+// 相手が応答しないときに job を止めない
+const get = (url) => fetch(url, { signal: AbortSignal.timeout(30_000) });
+
 const json = async (url) => {
-  const res = await fetch(url);
+  const res = await get(url);
   if (!res.ok) throw new Error(`${url}: ${res.status}`);
   return res.json();
 };
@@ -33,10 +36,12 @@ const checks = {
     return { ok: c["support-phase"] === "active", detail: `${channel}: ${c["support-phase"]} (${c["latest-release"]})` };
   },
   // ページの文言が変わったか (動作環境の表など)
-  async "page-text-gone"({ url, text }) {
-    const res = await fetch(url);
+  // marker はその表が読めている目印で、無ければ作りが変わったとみて error にする (作り替えを対応と取り違えない)
+  async "page-text-gone"({ url, text, marker }) {
+    const res = await get(url);
     if (!res.ok) throw new Error(`${url}: ${res.status}`);
     const body = (await res.text()).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ");
+    if (!body.includes(marker)) throw new Error(`${url} に目印「${marker}」が無い (ページの作りが変わった)`);
     return { ok: !body.includes(text), detail: body.includes(text) ? `まだ「${text}」` : `「${text}」が無くなった` };
   },
 };

@@ -29,13 +29,13 @@
     {
       "id": "mosp-tomcat",
       "title": "MosP の動作環境の Tomcat が 9.0 から変わった",
-      "check": { "type": "page-text-gone", "url": "https://www.e-s-mind.com/environment/", "text": "Tomcat 9.0.X" },
+      "check": { "type": "page-text-gone", "url": "https://www.e-s-mind.com/environment/", "text": "Tomcat 9.0.X", "marker": "ミドルウェア" },
       "pins": ["danything/helm-mosp: renovate.json の tomcat allowedVersions 9.0 系"]
     },
     {
       "id": "mosp-postgres",
       "title": "MosP の動作環境の PostgreSQL が 13 から変わった",
-      "check": { "type": "page-text-gone", "url": "https://www.e-s-mind.com/environment/", "text": "PostgreSQL 13.X" },
+      "check": { "type": "page-text-gone", "url": "https://www.e-s-mind.com/environment/", "text": "PostgreSQL 13.X", "marker": "ミドルウェア" },
       "pins": ["danything/helm-mosp: renovate.json の postgres allowedVersions 13 系"]
     },
     {
