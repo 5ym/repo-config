@@ -1,0 +1,51 @@
+{
+  "$comment": "Renovate の規則などで版を留めているもののうち、相手が対応したら外すもの。pin-watch.yml が毎週確かめ、外せるようになったら issue を立てる。わざと留めているもの (gitops の postgres <18 など、人の作業が要るもの) は載せない",
+  "watches": [
+    {
+      "id": "typescript-7-astro-check",
+      "title": "astro check が TypeScript 7 に対応した",
+      "check": { "type": "npm-peer", "package": "@astrojs/check", "peer": "typescript", "version": "7.0.0" },
+      "pins": [
+        "danything/corp: renovate.json の typescript allowedVersions <7",
+        "danything/blog: renovate.json の typescript allowedVersions <7"
+      ]
+    },
+    {
+      "id": "typescript-7-svelte-check",
+      "title": "svelte-check が TypeScript 7 に対応した",
+      "check": { "type": "npm-peer", "package": "svelte-check", "peer": "typescript", "version": "7.0.0" },
+      "pins": [
+        "5ym/repo-config: default.json の typescript allowedVersions <7",
+        "5ym/noren: renovate.json の typescript allowedVersions <7",
+        "doa/todoroku・doa/worklog-cloud・doa/tamasagashi (Forgejo): renovate.json の typescript allowedVersions <7"
+      ]
+    },
+    {
+      "id": "dotnet-11-ga",
+      "title": ".NET 11 が正式リリースになった",
+      "check": { "type": "dotnet-ga", "channel": "11.0" },
+      "pins": ["danything/denpa: renovate.json の mcr.microsoft.com/dotnet/sdk allowedVersions <11"]
+    },
+    {
+      "id": "mosp-tomcat",
+      "title": "MosP の動作環境の Tomcat が 9.0 から変わった",
+      "check": { "type": "page-text-gone", "url": "https://www.e-s-mind.com/environment/", "text": "Tomcat 9.0.X" },
+      "pins": ["danything/helm-mosp: renovate.json の tomcat allowedVersions 9.0 系"]
+    },
+    {
+      "id": "mosp-postgres",
+      "title": "MosP の動作環境の PostgreSQL が 13 から変わった",
+      "check": { "type": "page-text-gone", "url": "https://www.e-s-mind.com/environment/", "text": "PostgreSQL 13.X" },
+      "pins": ["danything/helm-mosp: renovate.json の postgres allowedVersions 13 系"]
+    },
+    {
+      "id": "blades-3.1.0",
+      "title": "Blades 3.1.0 の正式版が出た",
+      "check": { "type": "npm-stable", "package": "@anyblades/blades", "version": "3.1.0" },
+      "pins": [
+        "danything/xool・danything/lgtm・danything/denpa・5ym/noren: package.json の @anyblades/blades の beta 固定を ^3.1.0 に戻し、renovate.json の blades の packageRule (groupSlug blades) を消す",
+        "doa/todoroku・doa/worklog-cloud・doa/tamasagashi (Forgejo): 同じ"
+      ]
+    }
+  ]
+}
