@@ -24,7 +24,10 @@
       "id": "dotnet-11-ga",
       "title": ".NET 11 が正式リリースになった",
       "check": { "type": "dotnet-ga", "channel": "11.0" },
-      "pins": ["danything/denpa: renovate.json の mcr.microsoft.com/dotnet/sdk allowedVersions <11"]
+      "pins": [
+        "5ym/repo-config: default.json の mcr.microsoft.com/dotnet/** allowedVersions <11 (上限を <12 に上げる。各リポジトリの TargetFramework も net11.0 に)",
+        "danything/denpa・danything/denpa-hub: renovate.json の mcr.microsoft.com/dotnet/sdk allowedVersions <11 (repo-config の規則に任せて消す)"
+      ]
     },
     {
       "id": "mosp-tomcat",
