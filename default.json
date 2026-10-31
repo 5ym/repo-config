@@ -41,6 +41,17 @@
       "allowedVersions": "<7"
     },
     {
+      "description": "The moving .NET major tags (mcr.microsoft.com/dotnet/sdk:11.0, runtime-deps:11.0, ...) exist from the first preview in February and point at previews until the November GA, with no prerelease suffix for Renovate to see. Previews build, so CI stays green and the bump looks safe (danything/denpa-hub#4, 2026-10-31: sdk 10.0 -> 11.0 while 11 was still an RC). This holds repositories that are on a released major. Repositories already on a preview by choice (current version at or above the cap, like aizuchi and mado on 11.0) are not matched and keep their digest updates. Raise the cap once a year after the GA, together with each repository's TargetFramework.",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "mcr.microsoft.com/dotnet/**"
+      ],
+      "matchCurrentVersion": "<11",
+      "allowedVersions": "<11"
+    },
+    {
       "description": "Wait an hour after a GitHub release is published before proposing it. A release's tag appears first and its assets are uploaded minutes later; Renovate saw Infisical/cli v0.43.141 in that gap, and the PR's image build (which downloads the asset and checks it against the release's checksum file) failed with a 404 (danything/gitops#327, 2026-10-09: CI at 18:37 UTC, assets uploaded 18:45). An hour is enough for the uploads and short enough not to delay anything noticeably.",
       "matchDatasources": [
         "github-releases"
