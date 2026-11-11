@@ -41,7 +41,7 @@ on:
         type: string
         default: ""
       dotnet-version:
-        description: 入れる .NET SDK のバージョン。空なら global.json の sdk.version、それも無ければ 10.x
+        description: 入れる .NET SDK のバージョン。空なら global.json の sdk.version、それも無ければ 11.x
         type: string
         default: ""
 
@@ -79,7 +79,7 @@ jobs:
           esac >> "$GITHUB_OUTPUT"
 
       # global.json に sdk.version があればそれに合わせる (test.runner だけの global.json もある)。
-      # jq で読むので、コメント入りの global.json は読めずに 10.x になる。そのときは dotnet-version を渡す
+      # jq で読むので、コメント入りの global.json は読めずに 11.x になる。そのときは dotnet-version を渡す
       - name: Choose .NET version
         id: dotnet
         if: matrix.language == 'csharp'
@@ -91,7 +91,7 @@ jobs:
           elif [ -f global.json ] && jq -e '.sdk.version' global.json > /dev/null; then
             echo "global-json-file=global.json" >> "$GITHUB_OUTPUT"
           else
-            echo "version=10.x" >> "$GITHUB_OUTPUT"
+            echo "version=11.x" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Set up .NET

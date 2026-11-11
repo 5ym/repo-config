@@ -25,7 +25,8 @@
       "title": ".NET 12 が正式リリースになった",
       "check": { "type": "dotnet-ga", "channel": "12.0" },
       "pins": [
-        "5ym/repo-config: default.json の mcr.microsoft.com/dotnet/** matchCurrentVersion・allowedVersions <12 (上限を <13 に上げる。各リポジトリの TargetFramework も net12.0 に。README の説明と、この項目も次の版に書き換える)"
+        "5ym/repo-config: default.json の mcr.microsoft.com/dotnet/** matchCurrentVersion・allowedVersions <12 (上限を <13 に上げる。各リポジトリの TargetFramework も net12.0 に。README の説明と、この項目も次の版に書き換える)",
+        "5ym/repo-config: .github/workflows/codeql.yml の .NET SDK の既定 11.x (12.x に上げる。danything/aizuchi と danything/mado の codeql.yml が渡している dotnet-version: 11.x は Renovate が追わないので、消すか手で上げる)"
       ]
     },
     {
