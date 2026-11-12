@@ -36,7 +36,7 @@ name: CodeQL
 # ジョブは走らせて、解析の段だけを飛ばして成功で終える (Analyze (<言語>) を必須チェックにしていても、PR はマージできる)。
 # ジョブの if で飛ばさないのは、matrix の 1 つだけを飛ばせないため (ジョブの if は matrix を読めない。
 # matrix から外すと、そのチェックが出ずに必須チェックが保留のまま残る)。触ったファイルは git の差で読み
-# (PR をベースのブランチに重ねたコミットと、ベースの差)、読めなかったときは全部解析する。
+# (PR をベースのブランチに重ねたコミットと、その 1 つ目の親の差)、読めなかったときは全部解析する。
 # 飛ばした言語は、その PR に結果 (SARIF) を上げない。ruleset の code_scanning で結果を必須にしているリポジトリでは使わない。
 on:
   workflow_call:
@@ -88,15 +88,15 @@ jobs:
           LANGUAGE: ${{ matrix.language }}
           LANGUAGE_PATHS: ${{ inputs.language-paths }}
           EVENT: ${{ github.event_name }}
-          BASE: ${{ github.event.pull_request.base.sha }}
         run: |
           set -euo pipefail
           patterns=$(jq -r --arg l "$LANGUAGE" '.[$l] // [] | .[]' <<< "$LANGUAGE_PATHS")
           if [ "$EVENT" != pull_request ] || [ -z "$patterns" ]; then echo analyze=true >> "$GITHUB_OUTPUT"; exit 0; fi
-          # checkout は PR をベースのブランチに重ねたコミット (HEAD) を取ってくる。その 1 つ目の親が BASE なので、2 つの差が PR の変更になる。
+          # checkout は PR をベースのブランチに重ねたコミット (HEAD) を取ってくる。その 1 つ目の親 (いまのベースの先頭) との差が PR の変更になる。
+          # イベントの base.sha は PR を開いたときのベースのままのことがあり、あとからベースに入った変更まで差に入るので使わない。
           # --no-renames で、移した・消したファイルは元の場所も並べる
           # -z で区切る (日本語などのパスを " で囲んでエスケープさせない)
-          if ! git fetch --no-tags --quiet --depth=1 origin "$BASE" || ! git diff -z --name-only --no-renames "$BASE" HEAD > "$RUNNER_TEMP/changed"; then
+          if ! git fetch --no-tags --quiet --depth=2 origin "$(git rev-parse HEAD)" || ! git diff -z --name-only --no-renames HEAD^1 HEAD > "$RUNNER_TEMP/changed"; then
             echo analyze=true >> "$GITHUB_OUTPUT"; exit 0
           fi
           while IFS= read -r -d '' f; do
