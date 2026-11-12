@@ -95,15 +95,16 @@ jobs:
           if [ "$EVENT" != pull_request ] || [ -z "$patterns" ]; then echo analyze=true >> "$GITHUB_OUTPUT"; exit 0; fi
           # checkout は PR をベースのブランチに重ねたコミット (HEAD) を取ってくる。その 1 つ目の親が BASE なので、2 つの差が PR の変更になる。
           # --no-renames で、移した・消したファイルは元の場所も並べる
-          if ! git fetch --no-tags --quiet --depth=1 origin "$BASE" || ! files=$(git diff --name-only --no-renames "$BASE" HEAD); then
+          # -z で区切る (日本語などのパスを " で囲んでエスケープさせない)
+          if ! git fetch --no-tags --quiet --depth=1 origin "$BASE" || ! git diff -z --name-only --no-renames "$BASE" HEAD > "$RUNNER_TEMP/changed"; then
             echo analyze=true >> "$GITHUB_OUTPUT"; exit 0
           fi
-          while IFS= read -r f; do
+          while IFS= read -r -d '' f; do
             while IFS= read -r p; do
               # shellcheck disable=SC2053 # パターンとして比べる
               if [[ $f == $p ]]; then echo "analyze=true" >> "$GITHUB_OUTPUT"; exit 0; fi
             done <<< "$patterns"
-          done <<< "$files"
+          done < "$RUNNER_TEMP/changed"
           echo "analyze=false" >> "$GITHUB_OUTPUT"
           echo "::notice::この PR は language-paths の $LANGUAGE のパターンに当たるファイルを触っていないので、解析を飛ばしました"
 
