@@ -17,6 +17,8 @@ name: CodeQL
 #       uses: 5ym/repo-config/.github/workflows/codeql.yml@main
 #       with:
 #         languages: '["actions", "csharp"]'
+#         # 任意。PR がこのパターンに当たるファイルを触っていなければ、その言語の解析を飛ばす
+#         language-paths: '{"csharp": ["src/*", "*.cs", "*.csproj", "global.json"]}'
 #
 # default setup は C# を build-mode: none (ビルドせずにソースだけ読む) で解析し、呼び出し先を
 # 解決しきれずに「Low C# analysis quality」の警告が出る (denpa で 83%、しきい値 85%)。
@@ -29,6 +31,12 @@ name: CodeQL
 #
 # default setup と同時には使えない (オンだと結果が受け付けられない)。呼ぶ側のリポジトリでは
 # default setup を切る。repo-settings.yml の毎日の実行も、これを呼ぶリポジトリでは default setup をオンにしない。
+#
+# language-paths を渡すと、PR では触ったファイルがどのパターンにも当たらない言語の解析を飛ばす。
+# ジョブは走らせて、解析の段だけを飛ばして成功で終える (Analyze (<言語>) を必須チェックにしていても、PR はマージできる)。
+# ジョブの if で飛ばさないのは、matrix の 1 つだけを飛ばせないため (ジョブの if は matrix を読めない。
+# matrix から外すと、そのチェックが出ずに必須チェックが保留のまま残る)。触ったファイルは compare の API で読み、
+# 300 件以上の PR (API が返しきれない) と、読めなかったときは全部解析する。
 on:
   workflow_call:
     inputs:
@@ -44,6 +52,13 @@ on:
         description: 入れる .NET SDK のバージョン。空なら global.json の sdk.version、それも無ければ 11.x
         type: string
         default: ""
+      language-paths:
+        description: >-
+          言語ごとのパスのパターン (JSON のオブジェクト。例 '{"csharp": ["agent/*", "*.cs"]}')。
+          pull_request では、PR がどのパターンにも当たるファイルを触っていない言語の解析を飛ばす。
+          パターンは bash の [[ == ]] で比べる (* は / にも当たる)。書いていない言語と、pull_request 以外では全部解析する
+        type: string
+        default: "{}"
 
 permissions:
   contents: read
@@ -63,11 +78,39 @@ jobs:
       matrix:
         language: ${{ fromJSON(inputs.languages) }}
     steps:
+      - name: Choose whether to analyze
+        id: run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LANGUAGE: ${{ matrix.language }}
+          LANGUAGE_PATHS: ${{ inputs.language-paths }}
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          patterns=$(jq -r --arg l "$LANGUAGE" '.[$l] // [] | .[]' <<< "$LANGUAGE_PATHS")
+          if [ "$EVENT" != pull_request ] || [ -z "$patterns" ]; then echo analyze=true >> "$GITHUB_OUTPUT"; exit 0; fi
+          if ! files=$(gh api "repos/$GITHUB_REPOSITORY/compare/$BASE...$HEAD" --jq '.files[].filename') ||
+            [ "$(printf '%s\n' "$files" | grep -c .)" -ge 300 ]; then
+            echo analyze=true >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          while IFS= read -r f; do
+            while IFS= read -r p; do
+              # shellcheck disable=SC2053 # パターンとして比べる
+              if [[ $f == $p ]]; then echo "analyze=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+            done <<< "$patterns"
+          done <<< "$files"
+          echo "analyze=false" >> "$GITHUB_OUTPUT"
+          echo "::notice::この PR は language-paths の $LANGUAGE のパターンに当たるファイルを触っていないので、解析を飛ばしました"
+
       - name: Checkout
+        if: steps.run.outputs.analyze == 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Choose build mode
         id: mode
+        if: steps.run.outputs.analyze == 'true'
         env:
           LANGUAGE: ${{ matrix.language }}
           CSHARP_BUILD: ${{ inputs.csharp-build }}
@@ -82,7 +125,7 @@ jobs:
       # jq で読むので、コメント入りの global.json は読めずに 11.x になる。そのときは dotnet-version を渡す
       - name: Choose .NET version
         id: dotnet
-        if: matrix.language == 'csharp'
+        if: steps.run.outputs.analyze == 'true' && matrix.language == 'csharp'
         env:
           DOTNET_VERSION: ${{ inputs.dotnet-version }}
         run: |
@@ -95,25 +138,27 @@ jobs:
           fi
 
       - name: Set up .NET
-        if: matrix.language == 'csharp'
+        if: steps.run.outputs.analyze == 'true' && matrix.language == 'csharp'
         uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           dotnet-version: ${{ steps.dotnet.outputs.version }}
           global-json-file: ${{ steps.dotnet.outputs.global-json-file }}
 
       - name: Initialize CodeQL
+        if: steps.run.outputs.analyze == 'true'
         uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ steps.mode.outputs.mode }}
 
       - name: Build
-        if: steps.mode.outputs.mode == 'manual'
+        if: steps.run.outputs.analyze == 'true' && steps.mode.outputs.mode == 'manual'
         env:
           CSHARP_BUILD: ${{ inputs.csharp-build }}
         run: eval "$CSHARP_BUILD"
 
       - name: Analyze
+        if: steps.run.outputs.analyze == 'true'
         uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         with:
           category: /language:${{ matrix.language }}
