@@ -35,8 +35,9 @@ name: CodeQL
 # language-paths を渡すと、PR では触ったファイルがどのパターンにも当たらない言語の解析を飛ばす。
 # ジョブは走らせて、解析の段だけを飛ばして成功で終える (Analyze (<言語>) を必須チェックにしていても、PR はマージできる)。
 # ジョブの if で飛ばさないのは、matrix の 1 つだけを飛ばせないため (ジョブの if は matrix を読めない。
-# matrix から外すと、そのチェックが出ずに必須チェックが保留のまま残る)。触ったファイルは compare の API で読み、
-# 300 件以上の PR (API が返しきれない) と、読めなかったときは全部解析する。
+# matrix から外すと、そのチェックが出ずに必須チェックが保留のまま残る)。触ったファイルは git の差で読み
+# (PR をベースのブランチに重ねたコミットと、ベースの差)、読めなかったときは全部解析する。
+# 飛ばした言語は、その PR に結果 (SARIF) を上げない。ruleset の code_scanning で結果を必須にしているリポジトリでは使わない。
 on:
   workflow_call:
     inputs:
@@ -78,21 +79,23 @@ jobs:
       matrix:
         language: ${{ fromJSON(inputs.languages) }}
     steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
       - name: Choose whether to analyze
         id: run
         env:
-          GH_TOKEN: ${{ github.token }}
           LANGUAGE: ${{ matrix.language }}
           LANGUAGE_PATHS: ${{ inputs.language-paths }}
           EVENT: ${{ github.event_name }}
           BASE: ${{ github.event.pull_request.base.sha }}
-          HEAD: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
           patterns=$(jq -r --arg l "$LANGUAGE" '.[$l] // [] | .[]' <<< "$LANGUAGE_PATHS")
           if [ "$EVENT" != pull_request ] || [ -z "$patterns" ]; then echo analyze=true >> "$GITHUB_OUTPUT"; exit 0; fi
-          if ! files=$(gh api "repos/$GITHUB_REPOSITORY/compare/$BASE...$HEAD" --jq '.files[].filename') ||
-            [ "$(printf '%s\n' "$files" | grep -c .)" -ge 300 ]; then
+          # checkout は PR をベースのブランチに重ねたコミット (HEAD) を取ってくる。その 1 つ目の親が BASE なので、2 つの差が PR の変更になる。
+          # --no-renames で、移した・消したファイルは元の場所も並べる
+          if ! git fetch --no-tags --quiet --depth=1 origin "$BASE" || ! files=$(git diff --name-only --no-renames "$BASE" HEAD); then
             echo analyze=true >> "$GITHUB_OUTPUT"; exit 0
           fi
           while IFS= read -r f; do
@@ -103,10 +106,6 @@ jobs:
           done <<< "$files"
           echo "analyze=false" >> "$GITHUB_OUTPUT"
           echo "::notice::この PR は language-paths の $LANGUAGE のパターンに当たるファイルを触っていないので、解析を飛ばしました"
-
-      - name: Checkout
-        if: steps.run.outputs.analyze == 'true'
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Choose build mode
         id: mode
