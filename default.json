@@ -64,6 +64,13 @@
         "npm"
       ],
       "minimumReleaseAge": "1 hour"
+    },
+    {
+      "description": "The same wait for NuGet. A package is listed minutes after it is uploaded, and the packages of one release are listed at different times; Renovate saw TUnit 1.83.8 in that gap, so restore failed with NU1102 on TUnit.Assertions and TUnit.Engine (danything/mado#121 and danything/denpa-hub#34, 2026-11-11: all three uploaded 19:02 UTC, TUnit listed 19:21, the PR's CI ran 19:25, TUnit.Engine listed 19:26, TUnit.Assertions 19:27).",
+      "matchDatasources": [
+        "nuget"
+      ],
+      "minimumReleaseAge": "1 hour"
     }
   ],
   "automergeType": "pr",
