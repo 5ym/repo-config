@@ -77,11 +77,7 @@
         "wiki",
         "repository",
         "release",
-        "package",
-        "pull_request_review_request",
-        "action_run_failure",
-        "action_run_recover",
-        "action_run_success"
+        "pull_request_review_request"
       ],
       "branch_filter": "*"
     }
