@@ -15,7 +15,11 @@ const json = async (url: string): Promise<any> => {
   return res.json();
 };
 
-const isPrerelease = (v: string) => v.includes("-");
+// semver として読める版だけを比べる (読めない版を Bun.semver.order に渡すと、等しいとみなされうる)
+const SEMVER = /^\d+\.\d+\.\d+(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$/;
+const isVersion = (v: string) => SEMVER.test(v);
+// プレリリースは「-」から「+」(ビルドの付記) の手前まで。付記の中の「-」はプレリリースではない
+const isPrerelease = (v: string) => SEMVER.exec(v)?.[1] !== undefined;
 const newestFirst = (a: string, b: string) => Bun.semver.order(b, a);
 
 const checks: Record<string, (c: Json) => Promise<Result>> = {
@@ -28,9 +32,10 @@ const checks: Record<string, (c: Json) => Promise<Result>> = {
   },
   // その版以上の正式版 (プレリリースでない) が出ているか
   async "npm-stable"({ package: name, version }) {
+    if (!isVersion(version)) throw new Error(`pin-watch.json の版 ${version} が semver ではない`);
     const doc = await json(`https://registry.npmjs.org/${name}`);
     const stable = Object.keys(doc.versions)
-      .filter((v) => !isPrerelease(v) && Bun.semver.order(v, version) >= 0)
+      .filter((v) => isVersion(v) && !isPrerelease(v) && Bun.semver.order(v, version) >= 0)
       .sort(newestFirst);
     return {
       ok: stable.length > 0,
