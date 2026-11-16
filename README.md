@@ -90,7 +90,7 @@ GitHub の `danything`・`5ym` と Forgejo(fj.doany.io)の `doa` は、danything
 
 Renovate の規則などで版を留めているもののうち、**相手が対応したら外すもの**を [pin-watch.json](pin-watch.json) に書いておくと、
 [.github/workflows/pin-watch.yml](.github/workflows/pin-watch.yml) が毎週 (月曜 9:17) 確かめ、外せるようになったらこのリポジトリに issue を立てる (5ym に割り当て)。
-固定だけして放置しないため。確かめ方は 4 種類 ([pin-watch.mjs](pin-watch.mjs)):
+固定だけして放置しないため。確かめ方は 4 種類 ([pin-watch.ts](pin-watch.ts)):
 
 | type | 外せる条件 |
 | --- | --- |

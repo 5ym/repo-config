@@ -10,9 +10,9 @@ name: Forgejo settings
 on:
   push:
     branches: [main]
-    paths: [forgejo-settings.json, forgejo-settings.py, .github/workflows/forgejo-settings.yml]
+    paths: [forgejo-settings.json, forgejo-settings.ts, .bun-version, .github/workflows/forgejo-settings.yml]
   pull_request:
-    paths: [forgejo-settings.json, forgejo-settings.py, .github/workflows/forgejo-settings.yml]
+    paths: [forgejo-settings.json, forgejo-settings.ts, .bun-version, .github/workflows/forgejo-settings.yml]
   schedule:
     - cron: "47 3 * * *"
   workflow_dispatch:
@@ -28,8 +28,11 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
       - if: github.event_name == 'pull_request'
-        run: python3 -c "import json; json.load(open('forgejo-settings.json'))" && python3 -m py_compile forgejo-settings.py
+        run: bun -e "await Bun.file('forgejo-settings.json').json()" && bun build --target=bun --outdir=/tmp/check forgejo-settings.ts >/dev/null
       # JWT は「Authorization: token ...」のままで Forgejo の API に通るので、スクリプトは変えない
       - if: github.event_name != 'pull_request'
         name: Forgejo に渡す JWT を取る
@@ -41,6 +44,6 @@ jobs:
           echo "::add-mask::$jwt"
           echo "FORGEJO_TOKEN=$jwt" >> "$GITHUB_ENV"
       - if: github.event_name != 'pull_request'
-        run: python3 forgejo-settings.py
+        run: bun forgejo-settings.ts
         env:
           FORGEJO_MATRIX_WEBHOOK_URL: ${{ secrets.FORGEJO_MATRIX_WEBHOOK_URL }}

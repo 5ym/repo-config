@@ -10,7 +10,8 @@ on:
     branches: [main]
     paths:
       - pin-watch.json
-      - pin-watch.mjs
+      - pin-watch.ts
+      - .bun-version
       - .github/workflows/pin-watch.yml
   workflow_dispatch:
 
@@ -23,12 +24,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: oven-sh/setup-bun@v2
         with:
-          node-version: lts/*
-      - run: npm install --no-save --no-package-lock semver
+          bun-version-file: .bun-version
       - name: 確かめる
-        run: node pin-watch.mjs > results.json
+        run: bun pin-watch.ts > results.json
       - name: 外せるものの issue を立てる
         env:
           GH_TOKEN: ${{ github.token }}
