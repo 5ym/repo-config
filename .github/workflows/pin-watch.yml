@@ -43,7 +43,7 @@ jobs:
               echo "開いている issue がある: $id"
               continue
             fi
-            body=$(jq -r '"確かめた結果: \(.detail)\n\n外すもの:\n\(.pins | map("- " + .) | join("\n"))\n\n外したら pin-watch.json からこの項目 (`\(.id)`) を消す。"' <<<"$w")
+            body=$(jq -r '"確かめた結果: \(.detail)\n\n\(.pinsLabel // "外すもの"):\n\(.pins | map("- " + .) | join("\n"))\n\n\(if .after then "\(.after) (`\(.id)`)" else "外したら pin-watch.json からこの項目 (`\(.id)`) を消す。" end)"' <<<"$w")
             gh issue create --title "[pin-watch] $(jq -r .title <<<"$w")" --body "$body" --assignee 5ym || { echo "::error::issue を立てられなかった: $id"; failed=1; }
           done < <(jq -c '.[] | select(.ok)' results.json)
           {

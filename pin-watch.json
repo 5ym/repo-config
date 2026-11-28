@@ -1,5 +1,5 @@
 {
-  "$comment": "Renovate の規則などで版を留めているもののうち、相手が対応したら外すもの。pin-watch.yml が毎週確かめ、外せるようになったら issue を立てる。わざと留めているもの (gitops の postgres <18 など、人の作業が要るもの) は載せない",
+  "$comment": "Renovate の規則などで版を留めているもののうち、相手が対応したら外すもの (と、相手のデータの更新に気づいて作り直すもの)。pin-watch.yml が毎週確かめ、外せるようになったら issue を立てる。わざと留めているもの (gitops の postgres <18 など、人の作業が要るもの) は載せない",
   "watches": [
     {
       "id": "typescript-7-astro-check",
@@ -40,6 +40,14 @@
       "title": "MosP の動作環境の PostgreSQL が 13 から変わった",
       "check": { "type": "page-text-gone", "url": "https://www.e-s-mind.com/environment/", "text": "PostgreSQL 13.X", "marker": "ミドルウェア" },
       "pins": ["danything/helm-mosp: renovate.json の postgres allowedVersions 13 系"]
+    },
+    {
+      "id": "jma-gis-areas",
+      "title": "気象庁の予報区等 GIS データが更新された",
+      "check": { "type": "page-text-after", "url": "https://www.data.jma.go.jp/developer/gis.html", "marker": "更新履歴", "text": "2026年 2月26日" },
+      "pinsLabel": "すること",
+      "pins": ["danything/sonae: 更新されたデータの zip を取り、tools/areas/build.sh・build-weather.sh で static/areas/ を作り直す (docs/map.md の「層と、そのデータの出典・ライセンス」の下)"],
+      "after": "作り直したら、この項目の text を更新履歴のいちばん新しい日付に書き換える (消さない)。"
     }
   ]
 }
