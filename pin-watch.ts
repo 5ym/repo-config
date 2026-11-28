@@ -49,16 +49,31 @@ const checks: Record<string, (c: Json) => Promise<Result>> = {
     if (!c) return { ok: false, detail: `${channel} はまだ一覧に無い` };
     return { ok: c["support-phase"] === "active", detail: `${channel}: ${c["support-phase"]} (${c["latest-release"]})` };
   },
-  // ページの文言が変わったか (動作環境の表など)
+  // ページから文言が消えたか (動作環境の表など)
   // marker はその表が読めている目印で、無ければ作りが変わったとみて error にする (作り替えを対応と取り違えない)
   async "page-text-gone"({ url, text, marker }) {
-    const res = await get(url);
-    if (!res.ok) throw new Error(`${url}: ${res.status}`);
-    const body = (await res.text()).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ");
-    if (!body.includes(marker)) throw new Error(`${url} に目印「${marker}」が無い (ページの作りが変わった)`);
+    const body = await pageText(url, marker);
     return { ok: !body.includes(text), detail: body.includes(text) ? `まだ「${text}」` : `「${text}」が無くなった` };
   },
+  // 目印のすぐ後の文言が変わったか (上に新しい行を足していく更新履歴の、先頭の行など)。
+  // 古い行は残るので page-text-gone では気づけないものに使う
+  async "page-text-after"({ url, text, marker }) {
+    const body = await pageText(url, marker);
+    const after = body.slice(body.indexOf(marker) + marker.length).trimStart();
+    return after.startsWith(text)
+      ? { ok: false, detail: `「${marker}」の後はまだ「${text}」` }
+      : { ok: true, detail: `「${marker}」の後が「${after.slice(0, 80)}」になった` };
+  },
 };
+
+// ページを字だけにする (タグを外し、空白を 1 つにまとめる)。marker が無ければ作りが変わったとみて error
+async function pageText(url: string, marker: string): Promise<string> {
+  const res = await get(url);
+  if (!res.ok) throw new Error(`${url}: ${res.status}`);
+  const body = (await res.text()).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ");
+  if (!body.includes(marker)) throw new Error(`${url} に目印「${marker}」が無い (ページの作りが変わった)`);
+  return body;
+}
 
 const results: Json[] = [];
 for (const w of watches) {

@@ -90,7 +90,7 @@ GitHub の `danything`・`5ym` と Forgejo(fj.doany.io)の `doa` は、danything
 
 Renovate の規則などで版を留めているもののうち、**相手が対応したら外すもの**を [pin-watch.json](pin-watch.json) に書いておくと、
 [.github/workflows/pin-watch.yml](.github/workflows/pin-watch.yml) が毎週 (月曜 9:17) 確かめ、外せるようになったらこのリポジトリに issue を立てる (5ym に割り当て)。
-固定だけして放置しないため。確かめ方は 4 種類 ([pin-watch.ts](pin-watch.ts)):
+固定だけして放置しないため。確かめ方は 5 種類 ([pin-watch.ts](pin-watch.ts)):
 
 | type | 外せる条件 |
 | --- | --- |
@@ -98,6 +98,10 @@ Renovate の規則などで版を留めているもののうち、**相手が対
 | `npm-stable` | その版以上の正式版が出た (Blades 3.1.0) |
 | `dotnet-ga` | .NET のチャネルが active になった |
 | `page-text-gone` | ページから文言が消えた (MosP の動作環境の表) |
+| `page-text-after` | 目印 (`marker`) のすぐ後の文言が `text` で始まらなくなった (気象庁の予報区等 GIS データの更新履歴の先頭の行。古い行は残るので `page-text-gone` では気づけない) |
 
 外したら pin-watch.json の項目も消す。**わざと留めているもの (人の作業が要る PostgreSQL のメジャーなど) は載せない。**
 固定する前に、相手の宣言を毎回読む形にできないかを先に考える (gitops の renovate-validate は Renovate の engines から Node を決める)。
+
+版の固定でなく、相手のデータの更新に気づいて作り直すもの (気象庁の予報区等 GIS データから作る danything/sonae の区域の GeoJSON) も載せる。
+そうした項目は、issue の「外すもの」を `pinsLabel` (「すること」) で、最後の「この項目を消す」を `after` (作り直したら `text` を新しい日付に書き換える) で置き換え、項目は消さずに使い続ける。
